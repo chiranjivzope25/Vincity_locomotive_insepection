@@ -4,7 +4,4 @@ joblib
 xgboost
 pandas>=2.0.0
 fastapi>=0.110.0
-uvicorn[standard]>=0.28.0
-requests>=2.30.0
-huggingface-hub>=0.20.0
-spaces
+uvicorn>=0.28.0
