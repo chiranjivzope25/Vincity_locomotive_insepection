@@ -1,11 +1,8 @@
 import os
 import joblib
-import pandas as pd
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
-
-import uvicorn
 
 
 app = FastAPI(
@@ -90,13 +87,13 @@ def home():
 @app.post("/predict")
 def predict(request: DualModelRequest):
     try:
-        # Pydantic v2 syntax: .model_dump()
-        df_kinematic = pd.DataFrame([request.data_axel.model_dump()])
-        df_phy = pd.DataFrame([request.data_phy.model_dump()])
+        # Use dict values directly instead of pandas to save 50MB+ bundle size
+        kinematic_features = [list(request.data_axel.model_dump().values())]
+        phy_features = [list(request.data_phy.model_dump().values())]
         
         # 1. Transform Features
-        x_scaled_kin = transformer_kinematic.transform(df_kinematic)
-        x_scaled_phy = transformer_phy.transform(df_phy)
+        x_scaled_kin = transformer_kinematic.transform(kinematic_features)
+        x_scaled_phy = transformer_phy.transform(phy_features)
         
         # 2. Get Predictions & Probabilities
         pred_kin = int(model_kinematic.predict(x_scaled_kin)[0])
