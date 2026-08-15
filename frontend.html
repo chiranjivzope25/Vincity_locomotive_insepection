@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Axle Lock Early Warning System — Digital Twin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    :root {
+      --bg: #070a10;
+      --bg-panel: #0d121b;
+      --bg-panel-2: #111826;
+      --bg-raised: #141c29;
+      --border: #1c2531;
+      --border-soft: #161e2a;
+      --accent: #00d2ff;
+      --accent-soft: rgba(0, 210, 255, .12);
+      --accent-dim: #0a4a5c;
+      --text: #e8edf5;
+      --text-dim: #7c8798;
+      --text-faint: #4d5866;
+      --ok: #22c55e;
+      --ok-soft: rgba(34, 197, 94, .12);
+      --warn: #f5c542;
+      --warn-soft: rgba(245, 197, 66, .12);
+      --orange: #ff8c1a;
+      --orange-soft: rgba(255, 140, 26, .12);
+      --crit: #ff3b4e;
+      --crit-soft: rgba(255, 59, 78, .14);
+      --font-display: 'Rajdhani', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius: 10px;
+      --panel-w: 360px;
+      --topbar-h: 56px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ---------------- Topbar ---------------- */
+    .topbar {
+      height: var(--topbar-h);
+      min-height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
+      border-bottom: 1px solid var(--border);
+      z-index: 30;
+    }
+
+    .topbar .mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 13px;
+      flex: none;
+    }
+
+    .topbar .titles {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+      min-width: 0;
+    }
+
+    .topbar .titles h1 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: .04em;
+      margin: 0;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar .titles span {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .topbar .spacer {
+      flex: 1;
+    }
+
+    .conn-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .03em;
+      padding: 6px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg-raised);
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      flex: none;
+      transition: background .3s;
+    }
+
+    .conn-pill.live .conn-dot {
+      background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
+    }
+
+    .conn-pill.live {
+      color: var(--ok);
+      border-color: rgba(34, 197, 94, .3);
+    }
+
+    .conn-pill.offline .conn-dot {
+      background: var(--warn);
+      box-shadow: 0 0 8px var(--warn);
+    }
+
+    .conn-pill.offline {
+      color: var(--warn);
+      border-color: rgba(245, 197, 66, .3);
+    }
+
+    .conn-pill.checking .conn-dot {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 1.1s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .35;
+      }
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex: none;
+    }
+
+    .mobile-menu-btn svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    /* ---------------- Layout ---------------- */
+    .layout {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ---------------- Control panel ---------------- */
+    .control-panel {
+      width: var(--panel-w);
+      min-width: var(--panel-w);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 14px 14px 90px;
+      scrollbar-width: thin;
+    }
+
+    .control-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .control-panel::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .panel-intro {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      padding: 2px 4px 14px;
+      border-bottom: 1px solid var(--border-soft);
+      margin-bottom: 12px;
+    }
+
+    .section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      background: var(--bg-panel-2);
+      overflow: hidden;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section-idx {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-dim);
+      border-radius: 5px;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+    }
+
+    .section-head h2 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 13.5px;
+      letter-spacing: .02em;
+      margin: 0;
+      flex: 1;
+      color: var(--text);
+    }
+
+    .section-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      flex: none;
+      box-shadow: 0 0 6px var(--ok);
+      transition: background .25s, box-shadow .25s;
+    }
+
+    .section-status-dot.warn {
+      background: var(--warn);
+      box-shadow: 0 0 6px var(--warn);
+    }
+
+    .section-status-dot.orange {
+      background: var(--orange);
+      box-shadow: 0 0 6px var(--orange);
+    }
+
+    .section-status-dot.crit {
+      background: var(--crit);
+      box-shadow: 0 0 6px var(--crit);
+    }
+
+    .chevron {
+      color: var(--text-faint);
+      transition: transform .2s;
+      flex: none;
+    }
+
+    .section.collapsed .chevron {
+      transform: rotate(-90deg);
+    }
+
+    .section-body {
+      padding: 2px 12px 12px;
+    }
+
+    .section.collapsed .section-body {
+      display: none;
+    }
+
+    .control {
+      margin-bottom: 14px;
+    }
+
+    .control:last-child {
+      margin-bottom: 2px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+      gap: 8px;
+    }
+
+    .control-label .name {
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: .01em;
+    }
+
+    .control-label .val {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--accent);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 26px;
+      background: transparent;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--border);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--border);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #061117;
+      margin-top: -6px;
+      box-shadow: 0 0 0 3px rgba(0, 210, 255, .18);
+      transition: box-shadow .15s;
+    }
+
+    input[type="range"]:active::-webkit-slider-thumb {
+      box-shadow: 0 0 0 5px rgba(0, 210, 255, .28);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #061117;
+    }
+
+    input[type="range"].zone-slider::-webkit-slider-runnable-track {
+      background: var(--track-bg, var(--border));
+    }
+
+    input[type="range"].zone-slider::-moz-range-track {
+      background: var(--track-bg, var(--border));
+    }
+
+    /* ---------------- Main viewport area ---------------- */
+    .viewport-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+    }
+
+    .status-banner {
+      margin: 14px 16px 0;
+      padding: 13px 18px;
+      border-radius: var(--radius);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 14.5px;
+      letter-spacing: .03em;
+      text-align: center;
+      border: 1px solid;
+      transition: background .3s, color .3s, border-color .3s;
+      flex: none;
+    }
+
+    .status-banner.ok {
+      background: var(--ok-soft);
+      color: var(--ok);
+      border-color: rgba(34, 197, 94, .35);
+    }
+
+    .status-banner.warn {
+      background: var(--warn-soft);
+      color: var(--warn);
+      border-color: rgba(245, 197, 66, .35);
+    }
+
+    .status-banner.orange {
+      background: var(--orange-soft);
+      color: var(--orange);
+      border-color: rgba(255, 140, 26, .35);
+    }
+
+    .status-banner.crit {
+      background: var(--crit-soft);
+      color: var(--crit);
+      border-color: rgba(255, 59, 78, .4);
+      animation: critPulse 1.6s infinite;
+    }
+
+    @keyframes critPulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 59, 78, .0);
+      }
+
+      50% {
+        box-shadow: 0 0 20px 0 rgba(255, 59, 78, .25);
+      }
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 12px 16px 0;
+      flex: none;
+    }
+
+    .metric-card {
+      background: var(--bg-panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+    }
+
+    .metric-card .m-label {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 5px;
+    }
+
+    .metric-card .m-val {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .metric-card .m-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .metric-card .m-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width .35s ease, background .35s ease;
+    }
+
+    .scene-wrap {
+      flex: 1;
+      position: relative;
+      margin: 12px 16px 16px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #050810;
+      min-height: 260px;
+    }
+
+    #threeContainer {
+      position: absolute;
+      inset: 0;
+    }
+
+    #threeContainer canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .scene-hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .axle-chip {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      padding: 5px 9px;
+      border-radius: 6px;
+      background: rgba(8, 12, 20, .82);
+      border: 1px solid rgba(255, 255, 255, .08);
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(6px);
+    }
+
+    .axle-chip .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      flex: none;
+    }
+
+    .axle-chip .dot.warn {
+      background: var(--warn);
+    }
+
+    .axle-chip .dot.orange {
+      background: var(--orange);
+    }
+
+    .axle-chip .dot.crit {
+      background: var(--crit);
+    }
+
+    .axle-chip b {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .scene-hint {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      font-size: 10px;
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+      background: rgba(8, 12, 20, .6);
+      padding: 4px 8px;
+      border-radius: 5px;
+      pointer-events: none;
+    }
+
+    .scan-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 210, 255, .55), transparent);
+      top: 0;
+      animation: scan 5s linear infinite;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    @keyframes scan {
+      0% {
+        top: 0%;
+      }
+
+      100% {
+        top: 100%;
+      }
+    }
+
+    /* ---------------- Mobile ---------------- */
+    .mobile-fab {
+      display: none;
+    }
+
+    .panel-overlay {
+      display: none;
+    }
+
+    @media (max-width:900px) {
+      :root {
+        --topbar-h: 52px;
+      }
+
+      .mobile-menu-btn {
+        display: flex;
+      }
+
+      .control-panel {
+        position: fixed;
+        top: var(--topbar-h);
+        left: 0;
+        bottom: 0;
+        z-index: 50;
+        transform: translateX(-105%);
+        transition: transform .28s ease;
+        width: 86vw;
+        max-width: 360px;
+        box-shadow: 20px 0 40px rgba(0, 0, 0, .5);
+        padding-bottom: 110px;
+      }
+
+      .control-panel.open {
+        transform: translateX(0);
+      }
+
+      .panel-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-h);
+        background: rgba(0, 0, 0, .55);
+        z-index: 45;
+      }
+
+      .panel-overlay.show {
+        display: block;
+      }
+
+      .metrics-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .metrics-row .metric-card:first-child {
+        grid-column: 1/3;
+      }
+
+      .scene-wrap {
+        margin: 10px 10px 10px;
+        min-height: 320px;
+      }
+
+      .status-banner {
+        margin: 10px 10px 0;
+        font-size: 12.5px;
+        padding: 11px 12px;
+      }
+
+      .topbar .titles span {
+        display: none;
+      }
+
+      .conn-pill span.txt {
+        display: none;
+      }
+    }
+
+    @media (max-width:420px) {
+      .metrics-row {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics-row .metric-card:first-child {
+        grid-column: auto;
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+
+      .scan-line,
+      .status-banner.crit,
+      .conn-pill.checking .conn-dot {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+
+    <header class="topbar">
+      <button class="mobile-menu-btn" id="menuBtn" aria-label="Open sensor controls">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+      <div class="mark">AL</div>
+      <div class="titles">
+        <h1>AXLE LOCK EARLY WARNING SYSTEM</h1>
+        <span>Two-Stage Kinematic &amp; Physical Sensor Fusion · Digital Twin</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="conn-pill checking" id="connPill"><span class="conn-dot"></span><span class="txt"
+          id="connTxt">Connecting…</span></div>
+    </header>
+
+    <div class="layout">
+      <div class="panel-overlay" id="panelOverlay"></div>
+
+      <aside class="control-panel" id="controlPanel">
+        <div class="panel-intro">Live telemetry inputs for all four axles. Every change streams to the inference API and
+          updates the twin in real time.</div>
+        <div id="sectionsRoot"></div>
+      </aside>
+
+      <main class="viewport-area">
+        <div class="status-banner ok" id="statusBanner">SYSTEM NORMAL</div>
+
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="m-label">Risk Level</div>
+            <div class="m-val" id="mRisk">NORMAL</div>
+          </div>
+          <div class="metric-card">
+            <div class="m-label">Kinematic Anomaly</div>
+            <div class="m-val" id="mKin">0.0%</div>
+            <div class="m-bar">
+              <div class="m-bar-fill" id="mKinBar"></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="m-label">Physical Hazard</div>
+            <div class="m-val" id="mPhy">0.0%</div>
+            <div class="m-bar">
+              <div class="m-bar-fill" id="mPhyBar"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scene-wrap">
+          <div id="threeContainer"></div>
+          <div class="scan-line"></div>
+          <div class="scene-hud" id="sceneHud"></div>
+          <div class="scene-hint">DRAG TO ROTATE · SCROLL / PINCH TO ZOOM</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <button class="mobile-fab" id="mobileFab" style="display:none;"></button>
+
+  <script>
+    /* =========================================================================
+       CONFIG — point this at your FastAPI deployment
+       ========================================================================= */
+    const API_BASE = "http://127.0.0.1:8000";
+    const PREDICT_URL = API_BASE.replace(/\/$/, "") + "/predict";
+    const FETCH_TIMEOUT_MS = 3500;
+    const DEBOUNCE_MS = 220;
+
+    /* =========================================================================
+       STATE — mirrors the Pydantic schema exactly
+       ========================================================================= */
+    const state = {
+      v_loco_kmh: 80.0,
+      axle1_speed_rads: 55.1,
+      axle2_speed_rads: 55.2,
+      axle3_speed_rads: 55.0,
+      axle4_speed_rads: 54.8,
+      axle1_slip_ratio: 0.01,
+
+      axle1_bearing_temp_c: 45.0,
+      axle1_vibration_g: 0.3,
+      axle1_motor_current_amp: 300.0,
+
+      axle2_bearing_temp_c: 45.0,
+      axle2_vibration_g: 0.3,
+      axle2_motor_current_amp: 300.0,
+
+      axle3_bearing_temp_c: 46.2,
+      axle3_vibration_g: 0.35,
+      axle3_motor_current_amp: 305.0,
+
+      axle4_bearing_temp_c: 44.8,
+      axle4_vibration_g: 0.28,
+      axle4_motor_current_amp: 298.0,
+    };
+
+    /* =========================================================================
+       CONTROL PANEL DEFINITION
+       ========================================================================= */
+    const SECTIONS = [
+      {
+        idx: "1", title: "Train Kinematics",
+        controls: [
+          { key: "v_loco_kmh", label: "Locomotive Speed", unit: " km/h", min: 0, max: 160, step: 1, decimals: 0 },
+          { key: "axle1_speed_rads", label: "Axle 1 Speed", unit: " rad/s", min: 0, max: 200, step: 0.5, decimals: 1 },
+          { key: "axle2_speed_rads", label: "Axle 2 Speed", unit: " rad/s", min: 0, max: 200, step: 0.5, decimals: 1 },
+          { key: "axle3_speed_rads", label: "Axle 3 Speed", unit: " rad/s", min: 0, max: 200, step: 0.5, decimals: 1 },
+          { key: "axle4_speed_rads", label: "Axle 4 Speed", unit: " rad/s", min: 0, max: 200, step: 0.5, decimals: 1 },
+          { key: "axle1_slip_ratio", label: "Axle 1 Slip Ratio", unit: "", min: 0, max: 1, step: 0.01, decimals: 2 },
+        ]
+      },
+      {
+        idx: "2", title: "Axle 1 — Front Bogie", axleGroup: 1,
+        controls: [
+          { key: "axle1_bearing_temp_c", label: "Bearing Temp", unit: "°C", min: 20, max: 150, step: 0.1, decimals: 1 },
+          { key: "axle1_vibration_g", label: "Vibration", unit: " G", min: 0, max: 10, step: 0.05, decimals: 2 },
+          { key: "axle1_motor_current_amp", label: "Motor Current", unit: " A", min: 0, max: 700, step: 1, decimals: 0 },
+        ]
+      },
+      {
+        idx: "3", title: "Axle 2 — Front Bogie", axleGroup: 2,
+        controls: [
+          { key: "axle2_bearing_temp_c", label: "Bearing Temp", unit: "°C", min: 20, max: 150, step: 0.1, decimals: 1 },
+          { key: "axle2_vibration_g", label: "Vibration", unit: " G", min: 0, max: 10, step: 0.05, decimals: 2 },
+          { key: "axle2_motor_current_amp", label: "Motor Current", unit: " A", min: 0, max: 700, step: 1, decimals: 0 },
+        ]
+      },
+      {
+        idx: "4", title: "Axle 3 — Rear Bogie", axleGroup: 3,
+        controls: [
+          { key: "axle3_bearing_temp_c", label: "Bearing Temp", unit: "°C", min: 20, max: 150, step: 0.1, decimals: 1 },
+          { key: "axle3_vibration_g", label: "Vibration", unit: " G", min: 0, max: 10, step: 0.05, decimals: 2 },
+          { key: "axle3_motor_current_amp", label: "Motor Current", unit: " A", min: 0, max: 700, step: 1, decimals: 0 },
+        ]
+      },
+      {
+        idx: "5", title: "Axle 4 — Rear Bogie", axleGroup: 4,
+        controls: [
+          { key: "axle4_bearing_temp_c", label: "Bearing Temp", unit: "°C", min: 20, max: 150, step: 0.1, decimals: 1 },
+          { key: "axle4_vibration_g", label: "Vibration", unit: " G", min: 0, max: 10, step: 0.05, decimals: 2 },
+          { key: "axle4_motor_current_amp", label: "Motor Current", unit: " A", min: 0, max: 700, step: 1, decimals: 0 },
+        ]
+      },
+    ];
+
+    const sliderEls = {};   // key -> input element
+    const valueEls = {};    // key -> value span
+    const sectionDotEls = {}; // axleGroup -> dot element
+
+    function buildPanel() {
+      const root = document.getElementById("sectionsRoot");
+      SECTIONS.forEach((sec, i) => {
+        const section = document.createElement("div");
+        section.className = "section";
+
+        const head = document.createElement("div");
+        head.className = "section-head";
+        head.innerHTML = `
+      <div class="section-idx">${sec.idx}</div>
+      <h2>${sec.title}</h2>
+      ${sec.axleGroup ? `<div class="section-status-dot" id="secDot-${sec.axleGroup}"></div>` : ""}
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    `;
+        head.addEventListener("click", () => section.classList.toggle("collapsed"));
+        section.appendChild(head);
+
+        const body = document.createElement("div");
+        body.className = "section-body";
+
+        sec.controls.forEach(ctrl => {
+          const wrap = document.createElement("div");
+          wrap.className = "control";
+          const val = state[ctrl.key];
+          wrap.innerHTML = `
+        <div class="control-label">
+          <span class="name">${ctrl.label}</span>
+          <span class="val" id="val-${ctrl.key}">${val.toFixed(ctrl.decimals)}${ctrl.unit}</span>
+        </div>
+        <input type="range" id="slider-${ctrl.key}" min="${ctrl.min}" max="${ctrl.max}" step="${ctrl.step}" value="${val}">
+      `;
+          body.appendChild(wrap);
+          const input = wrap.querySelector("input");
+          sliderEls[ctrl.key] = input;
+          valueEls[ctrl.key] = wrap.querySelector(".val");
+
+          input.addEventListener("input", () => {
+            const v = parseFloat(input.value);
+            state[ctrl.key] = v;
+            valueEls[ctrl.key].textContent = v.toFixed(ctrl.decimals) + ctrl.unit;
+            onStateChanged();
+          });
+        });
+
+        if (sec.axleGroup) sectionDotEls[sec.axleGroup] = document.getElementById(`secDot-${sec.axleGroup}`);
+
+        section.appendChild(body);
+        root.appendChild(section);
+      });
+    }
+
+    /* =========================================================================
+       MOBILE PANEL TOGGLE
+       ========================================================================= */
+    const controlPanel = document.getElementById("controlPanel");
+    const panelOverlay = document.getElementById("panelOverlay");
+    document.getElementById("menuBtn").addEventListener("click", () => {
+      controlPanel.classList.add("open");
+      panelOverlay.classList.add("show");
+    });
+    panelOverlay.addEventListener("click", closePanel);
+    function closePanel() {
+      controlPanel.classList.remove("open");
+      panelOverlay.classList.remove("show");
+    }
+
+    /* =========================================================================
+       BACKEND COMMUNICATION
+       ========================================================================= */
+    const connPill = document.getElementById("connPill");
+    const connTxt = document.getElementById("connTxt");
+    let debounceTimer = null;
+    let lastGoodResult = null;
+
+    function setConn(mode, text) {
+      connPill.classList.remove("live", "offline", "checking");
+      connPill.classList.add(mode);
+      connTxt.textContent = text;
+    }
+
+    function buildPayload() {
+      return {
+        data_axel: {
+          v_loco_kmh: state.v_loco_kmh,
+          axle1_speed_rads: state.axle1_speed_rads,
+          axle2_speed_rads: state.axle2_speed_rads,
+          axle3_speed_rads: state.axle3_speed_rads,
+          axle4_speed_rads: state.axle4_speed_rads,
+          axle1_slip_ratio: state.axle1_slip_ratio,
+        },
+        data_phy: {
+          axle1_bearing_temp_c: state.axle1_bearing_temp_c,
+          axle1_vibration_g: state.axle1_vibration_g,
+          axle1_motor_current_amp: state.axle1_motor_current_amp,
+          axle2_bearing_temp_c: state.axle2_bearing_temp_c,
+          axle2_vibration_g: state.axle2_vibration_g,
+          axle2_motor_current_amp: state.axle2_motor_current_amp,
+          axle3_bearing_temp_c: state.axle3_bearing_temp_c,
+          axle3_vibration_g: state.axle3_vibration_g,
+          axle3_motor_current_amp: state.axle3_motor_current_amp,
+          axle4_bearing_temp_c: state.axle4_bearing_temp_c,
+          axle4_vibration_g: state.axle4_vibration_g,
+          axle4_motor_current_amp: state.axle4_motor_current_amp,
+        }
+      };
+    }
+
+    function localFallback() {
+      // Mirrors the Streamlit script's local override logic when the API is unreachable.
+      const lockThreshold = state.v_loco_kmh > 15.0 ? 5.0 : -1.0;
+      const locked = [state.axle1_speed_rads, state.axle2_speed_rads, state.axle3_speed_rads, state.axle4_speed_rads]
+        .some(s => s < lockThreshold);
+      if (locked) {
+        return {
+          overall_status: "CAUTION: AXLE LOCK DETECTED (LOCAL PREVIEW)", display_color: "yellow", risk_level: "MEDIUM",
+          model_outputs: { kinematic_model: { prediction: 1, confidence_score: 0.5 }, physical_model: { prediction: 0, confidence_score: 0.0 } }
+        };
+      }
+      return {
+        overall_status: "SYSTEM NORMAL (LOCAL PREVIEW — API OFFLINE)", display_color: "green", risk_level: "NORMAL",
+        model_outputs: { kinematic_model: { prediction: 0, confidence_score: 0.0 }, physical_model: { prediction: 0, confidence_score: 0.0 } }
+      };
+    }
+
+    async function pushToBackend() {
+      const payload = buildPayload();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try {
+        const res = await fetch(PREDICT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const json = await res.json();
+        lastGoodResult = json;
+        setConn("live", "Live · API connected");
+        applyResult(json);
+      } catch (err) {
+        clearTimeout(timer);
+        setConn("offline", "Offline · local preview");
+        applyResult(localFallback());
+      }
+    }
+
+    function onStateChanged() {
+      updateTwinFromState();          // instant visual feedback, no network wait
+      setConn("checking", "Syncing…");
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(pushToBackend, DEBOUNCE_MS);
+    }
+
+    /* =========================================================================
+       RESULT -> UI (banner / metrics)
+       ========================================================================= */
+    const bannerEl = document.getElementById("statusBanner");
+    const mRisk = document.getElementById("mRisk");
+    const mKin = document.getElementById("mKin");
+    const mPhy = document.getElementById("mPhy");
+    const mKinBar = document.getElementById("mKinBar");
+    const mPhyBar = document.getElementById("mPhyBar");
+
+    const COLOR_CLASS = { green: "ok", yellow: "warn", orange: "orange", red: "crit" };
+    const BAR_COLOR = { green: "var(--ok)", yellow: "var(--warn)", orange: "var(--orange)", red: "var(--crit)" };
+
+    function applyResult(json) {
+      const status = json.overall_status || "SYSTEM NORMAL";
+      const color = json.display_color || "green";
+      const risk = json.risk_level || "NORMAL";
+      const kin = (json.model_outputs && json.model_outputs.kinematic_model && json.model_outputs.kinematic_model.confidence_score) || 0;
+      const phy = (json.model_outputs && json.model_outputs.physical_model && json.model_outputs.physical_model.confidence_score) || 0;
+
+      bannerEl.textContent = status;
+      bannerEl.className = "status-banner " + (COLOR_CLASS[color] || "ok");
+
+      mRisk.textContent = risk;
+      mKin.textContent = (kin * 100).toFixed(1) + "%";
+      mPhy.textContent = (phy * 100).toFixed(1) + "%";
+      mKinBar.style.width = Math.min(100, kin * 100) + "%";
+      mPhyBar.style.width = Math.min(100, phy * 100) + "%";
+      const barColor = BAR_COLOR[color] || "var(--accent)";
+      mKinBar.style.background = barColor;
+      mPhyBar.style.background = barColor;
+    }
+
+    /* =========================================================================
+       THREE.JS DIGITAL TWIN
+       ========================================================================= */
+    const container = document.getElementById("threeContainer");
+    const sceneHud = document.getElementById("sceneHud");
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x080a0f, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 1000);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.minDistance = 6;
+    controls.maxDistance = 40;
+
+    scene.add(new THREE.AmbientLight(0xbcd4ff, 0.55));
+    scene.add(new THREE.HemisphereLight(0x4a6fa5, 0x0a0e17, 0.6));
+
+    const sun = new THREE.DirectionalLight(0xfff4e0, 2.1);
+    sun.position.set(15, 22, 12);
+    sun.castShadow = true;
+    scene.add(sun);
+
+    // cool rim light from the opposite side so the dark livery still reads as a solid shape
+    const rimLight = new THREE.DirectionalLight(0x00d2ff, 0.9);
+    rimLight.position.set(-14, 8, -16);
+    scene.add(rimLight);
+
+    // low warm kicker underneath to catch the undercarriage detail
+    const kicker = new THREE.PointLight(0xff8c1a, 0.5, 20, 2);
+    kicker.position.set(0, -0.5, 0);
+    scene.add(kicker);
+
+    /* ---- Livery: Prussian-blue chassis, safety-amber striping, cool chrome, bronze motors ---- */
+    const darkChassisMat = new THREE.MeshStandardMaterial({ color: 0x1d3a5f, metalness: 0.55, roughness: 0.38 });
+    const chassisEdgeMat = new THREE.MeshStandardMaterial({ color: 0x2f5583, metalness: 0.6, roughness: 0.3, emissive: 0x0d2b47, emissiveIntensity: 0.25 });
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffb020, emissive: 0xff8c1a, emissiveIntensity: 0.55, metalness: 0.2, roughness: 0.4 });
+    const steelReflect = new THREE.MeshStandardMaterial({ color: 0xd7e1ec, metalness: 0.92, roughness: 0.12 });
+    const darkMetal = new THREE.MeshStandardMaterial({ color: 0x4a3626, metalness: 0.65, roughness: 0.42 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x8b8f96, metalness: 0.95, roughness: 0.1 });
+    const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x38322a, roughness: 0.9 });
+
+    // reference grid so the chassis reads clearly against empty space
+    const grid = new THREE.GridHelper(60, 40, 0x14304a, 0x0d1620);
+    grid.position.y = -0.34;
+    if (grid.material) { grid.material.transparent = true; grid.material.opacity = 0.55; }
+    scene.add(grid);
+
+    function resizeRendererToDisplaySize() {
+      const w = container.clientWidth, h = container.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      const isPortrait = camera.aspect < 1.0;
+      if (isPortrait) camera.position.set(18, 10, 18);
+      else camera.position.set(11, 6, 11);
+      camera.updateProjectionMatrix();
+    }
+
+    // Track & sleepers
+    const sleeperGroup = new THREE.Group();
+    const sleeperGeo = new THREE.BoxGeometry(2.8, 0.16, 0.4);
+    for (let z = -25; z <= 25; z += 0.85) {
+      const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
+      sleeper.position.set(0, -0.3, z);
+      sleeper.receiveShadow = true;
+      sleeperGroup.add(sleeper);
+    }
+    scene.add(sleeperGroup);
+
+    // Rails
+    const railShape = new THREE.Shape();
+    railShape.moveTo(-0.08, 0); railShape.lineTo(0.08, 0);
+    railShape.lineTo(0.08, 0.04); railShape.lineTo(0.03, 0.1);
+    railShape.lineTo(0.04, 0.2); railShape.lineTo(-0.04, 0.2);
+    railShape.lineTo(-0.03, 0.1); railShape.lineTo(-0.08, 0.04);
+    const railExtrude = new THREE.ExtrudeGeometry(railShape, { depth: 52, bevelEnabled: false });
+    const railL = new THREE.Mesh(railExtrude, railMat);
+    railL.position.set(-1.1, -0.22, -26);
+    scene.add(railL);
+    const railR = railL.clone();
+    railR.position.set(1.1, -0.22, -26);
+    scene.add(railR);
+
+    // Frame spine — Prussian-blue body with a raised chrome edge and an amber safety stripe
+    const centerSpine = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.25, 9.0), darkChassisMat);
+    centerSpine.position.set(0, 0.55, 0);
+    centerSpine.castShadow = true;
+    scene.add(centerSpine);
+
+    const spineStripe = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.04, 9.02), stripeMat);
+    spineStripe.position.set(0, 0.44, 0);
+    scene.add(spineStripe);
+
+    function createBogieBlock(centerZ) {
+      const bogie = new THREE.Group();
+      const transom = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.28, 0.9), darkChassisMat);
+      transom.position.set(0, 0.45, 0);
+      transom.castShadow = true;
+      bogie.add(transom);
+
+      const transomTrim = new THREE.Mesh(new THREE.BoxGeometry(2.22, 0.05, 0.92), chassisEdgeMat);
+      transomTrim.position.set(0, 0.58, 0);
+      bogie.add(transomTrim);
+
+      const sideBeamGeo = new THREE.BoxGeometry(0.2, 0.3, 2.8);
+      const sideL = new THREE.Mesh(sideBeamGeo, darkChassisMat);
+      sideL.position.set(-1.25, 0.35, 0);
+      sideL.castShadow = true;
+      bogie.add(sideL);
+      const sideR = sideL.clone();
+      sideR.position.set(1.25, 0.35, 0);
+      bogie.add(sideR);
+
+      // amber warning stripe running the length of each side beam — reads clearly at a glance
+      const beamStripeGeo = new THREE.BoxGeometry(0.21, 0.05, 2.82);
+      const stripeL = new THREE.Mesh(beamStripeGeo, stripeMat);
+      stripeL.position.set(-1.25, 0.22, 0);
+      bogie.add(stripeL);
+      const stripeR = stripeL.clone();
+      stripeR.position.set(1.25, 0.22, 0);
+      bogie.add(stripeR);
+
+      bogie.position.set(0, 0, centerZ);
+      scene.add(bogie);
+      return bogie;
+    }
+    createBogieBlock(-3.35);
+    createBogieBlock(3.35);
+
+    function createAxle(posZ) {
+      const group = new THREE.Group();
+
+      const axleGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.3, 32);
+      axleGeo.rotateZ(Math.PI / 2);
+      group.add(new THREE.Mesh(axleGeo, steelReflect));
+
+      const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.12, 32);
+      wheelGeo.rotateZ(Math.PI / 2);
+      const wL = new THREE.Mesh(wheelGeo, steelReflect);
+      wL.position.set(-1.1, 0, 0);
+      group.add(wL);
+      const wR = new THREE.Mesh(wheelGeo, steelReflect);
+      wR.position.set(1.1, 0, 0);
+      group.add(wR);
+
+      const brakeMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x000000, emissiveIntensity: 0, metalness: 0.8 });
+      const shoeGeo = new THREE.BoxGeometry(0.12, 0.22, 0.16);
+      const shoeL = new THREE.Mesh(shoeGeo, brakeMat);
+      shoeL.position.set(-1.1, 0.1, -0.6);
+      group.add(shoeL);
+      const shoeR = new THREE.Mesh(shoeGeo, brakeMat);
+      shoeR.position.set(1.1, 0.1, -0.6);
+      group.add(shoeR);
+
+      const motorGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.6, 24);
+      motorGeo.rotateZ(Math.PI / 2);
+      const motor = new THREE.Mesh(motorGeo, darkMetal); // bronze traction-motor casing
+      motor.position.set(0, 0, -0.2);
+      group.add(motor);
+
+      const motorRing = new THREE.Mesh(new THREE.TorusGeometry(0.255, 0.02, 8, 24), steelReflect);
+      motorRing.rotation.y = Math.PI / 2;
+      motorRing.position.set(0, 0, 0.08);
+      group.add(motorRing);
+
+      const cableMat = new THREE.MeshStandardMaterial({ color: 0x00d2ff, emissive: 0x00a2ff, emissiveIntensity: 0.2 });
+      const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 12), cableMat);
+      cable.position.set(0, 0.28, -0.2);
+      group.add(cable);
+
+      const boxGeo = new THREE.BoxGeometry(0.28, 0.3, 0.28);
+      const boxMat = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.15, roughness: 0.2 });
+      const boxL = new THREE.Mesh(boxGeo, boxMat);
+      boxL.position.set(-1.3, 0, 0);
+      group.add(boxL);
+      const boxR = new THREE.Mesh(boxGeo, boxMat); // shared material — both bearing boxes must recolor together
+      boxR.position.set(1.3, 0, 0);
+      group.add(boxR);
+
+      group.position.set(0, 0.28, posZ);
+      scene.add(group);
+
+      // Thermal smoke particles (pre-allocated, toggled visible)
+      const pCount = 26;
+      const pGeo = new THREE.BufferGeometry();
+      const pPos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount * 3; i += 3) {
+        pPos[i] = (Math.random() - 0.5) * 2.6;
+        pPos[i + 1] = 0.3 + Math.random() * 0.4;
+        pPos[i + 2] = posZ + (Math.random() - 0.5) * 0.2;
+      }
+      pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+      const pMat = new THREE.PointsMaterial({ color: 0xff4400, size: 0.08, transparent: true, opacity: 0.8 });
+      const particles = new THREE.Points(pGeo, pMat);
+      particles.visible = false;
+      scene.add(particles);
+
+      return { group, wL, wR, boxMat, cableMat, brakeMat, particles, posZ, isLocked: false, vibVal: 0, speedVal: 0 };
+    }
+
+    const axleTwins = {
+      1: createAxle(-4.5),
+      2: createAxle(-2.2),
+      3: createAxle(2.2),
+      4: createAxle(4.5),
+    };
+
+    function hexToInt(hex) { return parseInt(hex.replace("#", "0x")); }
+    function sensorHex(temp, vib, locked) {
+      if (locked || temp > 90 || vib > 2.5) return "#ff2222";
+      if (temp > 70 || vib > 1.2) return "#ff8800";
+      return "#00ff66";
+    }
+    function sensorZoneClass(temp, vib, locked) {
+      if (locked || temp > 90 || vib > 2.5) return "crit";
+      if (temp > 70 || vib > 1.2) return "orange";
+      if (temp > 55 || vib > 0.7) return "warn";
+      return "ok";
+    }
+
+    function updateTwinFromState() {
+      const specs = {
+        1: { temp: state.axle1_bearing_temp_c, vib: state.axle1_vibration_g, amp: state.axle1_motor_current_amp, speed: state.axle1_speed_rads },
+        2: { temp: state.axle2_bearing_temp_c, vib: state.axle2_vibration_g, amp: state.axle2_motor_current_amp, speed: state.axle2_speed_rads },
+        3: { temp: state.axle3_bearing_temp_c, vib: state.axle3_vibration_g, amp: state.axle3_motor_current_amp, speed: state.axle3_speed_rads },
+        4: { temp: state.axle4_bearing_temp_c, vib: state.axle4_vibration_g, amp: state.axle4_motor_current_amp, speed: state.axle4_speed_rads },
+      };
+      const lockThreshold = state.v_loco_kmh > 15.0 ? 5.0 : -1.0;
+
+      let hudHtml = "";
+      Object.keys(specs).forEach(n => {
+        const s = specs[n];
+        const locked = s.speed < lockThreshold;
+        const twin = axleTwins[n];
+        twin.isLocked = locked;
+        twin.vibVal = s.vib;
+        twin.speedVal = s.speed;
+
+        const colorHex = sensorHex(s.temp, s.vib, locked);
+        const colorInt = hexToInt(colorHex);
+        twin.boxMat.color.setHex(colorInt);
+        twin.boxMat.emissive.setHex(colorInt);
+        twin.boxMat.emissiveIntensity = (s.temp > 70 || locked) ? 0.95 : 0.15;
+
+        const intensity = s.amp / 700.0;
+        twin.cableMat.emissiveIntensity = 0.2 + intensity * 1.5;
+
+        const isBraking = s.speed < 30.0 || locked;
+        twin.brakeMat.color.setHex(isBraking ? 0xff4400 : 0x222222);
+        twin.brakeMat.emissive.setHex(isBraking ? 0xff2200 : 0x000000);
+        twin.brakeMat.emissiveIntensity = isBraking ? 0.8 : 0.0;
+
+        twin.particles.visible = s.temp > 70;
+
+        const zone = sensorZoneClass(s.temp, s.vib, locked);
+        const label = n <= 2 ? "Front" : "Rear";
+        hudHtml += `<div class="axle-chip"><span class="dot ${zone === 'ok' ? '' : zone}"></span>Axle ${n} <b>${s.temp.toFixed(1)}°C</b> · <b>${s.vib.toFixed(2)}G</b> · ${locked ? '<b style="color:var(--crit)">LOCKED</b>' : 'OK'}</span></div>`;
+
+        if (sectionDotEls[n]) {
+          sectionDotEls[n].className = "section-status-dot" + (zone === "ok" ? "" : " " + zone);
+        }
+      });
+      sceneHud.innerHTML = hudHtml;
+    }
+
+    let sleeperSpeedFactor = state.v_loco_kmh * 0.003;
+    function updateSleeperSpeed() { sleeperSpeedFactor = state.v_loco_kmh * 0.003; }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      sleeperGroup.children.forEach(s => {
+        s.position.z += sleeperSpeedFactor;
+        if (s.position.z > 25) s.position.z -= 50;
+      });
+
+      Object.values(axleTwins).forEach(ax => {
+        if (!ax.isLocked) {
+          const w = ax.speedVal * 0.0012;
+          ax.wL.rotation.x += w;
+          ax.wR.rotation.x += w;
+        }
+        if (ax.vibVal > 0.5 || ax.isLocked) {
+          const shakeFactor = (ax.isLocked ? 1.5 : 1.0) * ax.vibVal * 0.006;
+          ax.group.position.x = (Math.random() - 0.5) * shakeFactor;
+          ax.group.position.y = 0.28 + (Math.random() - 0.5) * shakeFactor;
+        } else {
+          ax.group.position.x = 0;
+          ax.group.position.y = 0.28;
+        }
+        if (ax.particles.visible) {
+          const pos = ax.particles.geometry.attributes.position.array;
+          for (let i = 1; i < pos.length; i += 3) {
+            pos[i] += 0.009;
+            if (pos[i] > 1.3) pos[i] = 0.3;
+          }
+          ax.particles.geometry.attributes.position.needsUpdate = true;
+        }
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener("resize", resizeRendererToDisplaySize);
+    new ResizeObserver(resizeRendererToDisplaySize).observe(container);
+
+    /* =========================================================================
+       BOOT
+       ========================================================================= */
+    buildPanel();
+    resizeRendererToDisplaySize();
+    updateTwinFromState();
+    updateSleeperSpeed();
+    animate();
+    pushToBackend();
+
+    // keep sleeper speed synced whenever locomotive speed slider moves
+    const origOnStateChanged = onStateChanged;
+    onStateChanged = function () { updateSleeperSpeed(); origOnStateChanged(); };
+  </script>
+</body>
+
+</html>
